@@ -105,6 +105,10 @@ class Cart {
         return $this->getContent()->has($itemId);
     }
 
+    public function test(){
+        return 'test';
+    }
+
     /**
      * add item to the cart, it can be an array or multi dimensional array
      *
