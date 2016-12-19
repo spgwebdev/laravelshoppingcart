@@ -99,8 +99,10 @@ class ItemCollection extends Collection {
                 }
             }
 
+            $this->price2 = $newPrice;
             return Helpers::formatValue($newPrice, $formatted, $this->config);
         }
+        $this->price2 = $originalPrice;
         return Helpers::formatValue($originalPrice, $formatted, $this->config);
     }
 

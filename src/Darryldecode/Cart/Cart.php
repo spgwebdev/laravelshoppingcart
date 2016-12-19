@@ -9,7 +9,8 @@ use Darryldecode\Cart\Validators\CartItemValidator;
  * Class Cart
  * @package Darryldecode\Cart
  */
-class Cart {
+class Cart
+{
 
     /**
      * the item storage
@@ -47,6 +48,14 @@ class Cart {
     protected $sessionKeyCartConditions;
 
     /**
+     * ulterior
+     * the session key use to cart discount after exec getTotal()
+     *
+     * @var
+     */
+    protected $sessionKeyCartDiscount;
+
+    /**
      * Configuration to pass to ItemCollection
      *
      * @var
@@ -67,9 +76,10 @@ class Cart {
         $this->events = $events;
         $this->session = $session;
         $this->instanceName = $instanceName;
-        $this->sessionKeyCartItems = $session_key.'_cart_items';
-        $this->sessionKeyCartConditions = $session_key.'_cart_conditions';
-        $this->events->fire($this->getInstanceName().'.created', array($this));
+        $this->sessionKeyCartItems = $session_key . '_cart_items';
+        $this->sessionKeyCartConditions = $session_key . '_cart_conditions';
+        $this->sessionKeyCartDiscount = $session_key . '_cart_discount';  //Ex: ["total"=>...]
+        $this->events->fire($this->getInstanceName() . '.created', array($this));
         $this->config = $config;
     }
 
@@ -105,10 +115,6 @@ class Cart {
         return $this->getContent()->has($itemId);
     }
 
-    public function test(){
-        return 'test';
-    }
-
     /**
      * add item to the cart, it can be an array or multi dimensional array
      *
@@ -125,14 +131,11 @@ class Cart {
     {
         // if the first argument is an array,
         // we will need to call add again
-        if( is_array($id) )
-        {
+        if (is_array($id)) {
             // the first argument is an array, now we will need to check if it is a multi dimensional
             // array, if so, we will iterate through each item and call add again
-            if( Helpers::isMultiArray($id) )
-            {
-                foreach($id as $item)
-                {
+            if (Helpers::isMultiArray($id)) {
+                foreach ($id as $item) {
                     $this->add(
                         $item['id'],
                         $item['name'],
@@ -142,9 +145,7 @@ class Cart {
                         Helpers::issetAndHasValueOrAssignDefault($item['conditions'], array())
                     );
                 }
-            }
-            else
-            {
+            } else {
                 $this->add(
                     $id['id'],
                     $id['name'],
@@ -172,13 +173,10 @@ class Cart {
         $cart = $this->getContent();
 
         // if the item is already in the cart we will just update it
-        if( $cart->has($id) )
-        {
+        if ($cart->has($id)) {
 
             $this->update($id, $item);
-        }
-        else
-        {
+        } else {
 
             $this->addRow($id, $item);
 
@@ -198,50 +196,46 @@ class Cart {
      */
     public function update($id, $data)
     {
-        $this->events->fire($this->getInstanceName().'.updating', array($data, $this));
+        $this->events->fire($this->getInstanceName() . '.updating', array($data, $this));
 
         $cart = $this->getContent();
 
         $item = $cart->pull($id);
 
-        foreach($data as $key => $value)
-        {
+        foreach ($data as $key => $value) {
             // if the key is currently "quantity" we will need to check if an arithmetic
             // symbol is present so we can decide if the update of quantity is being added
             // or being reduced.
-            if( $key == 'quantity' )
-            {
+            if ($key == 'quantity') {
                 // we will check if quantity value provided is array,
                 // if it is, we will need to check if a key "relative" is set
                 // and we will evaluate its value if true or false,
                 // this tells us how to treat the quantity value if it should be updated
                 // relatively to its current quantity value or just totally replace the value
-                if( is_array($value) )
-                {
-                    if( isset($value['relative']) )
-                    {
-                        if( (bool) $value['relative'] )
-                        {
+                if (is_array($value)) {
+                    if (isset($value['relative'])) {
+                        if ((bool)$value['relative']) {
                             $item = $this->updateQuantityRelative($item, $key, $value['value']);
-                        }
-                        else
-                        {
+                        } else {
                             $item = $this->updateQuantityNotRelative($item, $key, $value['value']);
                         }
                     }
-                }
-                else
-                {
+                } else {
                     $item = $this->updateQuantityRelative($item, $key, $value);
                 }
-            }
-            elseif( $key == 'attributes' )
-            {
+            } elseif ($key == 'attributes') {
                 $item[$key] = new ItemAttributeCollection($value);
-            }
-            else
-            {
-                $item[$key] = $value;
+            } else {
+                //$item[$key] = $value;
+                //ulterior
+                if ($key == "conditions" and is_array($item[$key]) and $a2 = array_filter($item[$key], function ($v) {  // and count($item[$key]) and $item[$key][0]->getType()=="vat"
+                        return $v->getType() == "vat";
+                    })
+                ) {
+                    $item[$key] = array_merge($a2, $value);
+                } else {
+                    $item[$key] = $value;
+                }
             }
         }
 
@@ -249,7 +243,14 @@ class Cart {
 
         $this->save($cart);
 
-        $this->events->fire($this->getInstanceName().'.updated', array($item, $this));
+        $this->events->fire($this->getInstanceName() . '.updated', array($item, $this));
+    }
+
+    public function getKeyVat($arr)
+    {
+        foreach ($arr as $k => $v) {
+            //if ($v[])
+        }
     }
 
     /**
@@ -261,24 +262,19 @@ class Cart {
      */
     public function addItemCondition($productId, $itemCondition)
     {
-        if( $product = $this->get($productId) )
-        {
+        if ($product = $this->get($productId)) {
             $conditionInstance = "\\Darryldecode\\Cart\\CartCondition";
 
-            if( $itemCondition instanceof $conditionInstance )
-            {
+            if ($itemCondition instanceof $conditionInstance) {
                 // we need to copy first to a temporary variable to hold the conditions
                 // to avoid hitting this error "Indirect modification of overloaded element of Darryldecode\Cart\ItemCollection has no effect"
                 // this is due to laravel Collection instance that implements Array Access
                 // // see link for more info: http://stackoverflow.com/questions/20053269/indirect-modification-of-overloaded-element-of-splfixedarray-has-no-effect
                 $itemConditionTempHolder = $product['conditions'];
 
-                if( is_array($itemConditionTempHolder) )
-                {
+                if (is_array($itemConditionTempHolder)) {
                     array_push($itemConditionTempHolder, $itemCondition);
-                }
-                else
-                {
+                } else {
                     $itemConditionTempHolder = $itemCondition;
                 }
 
@@ -300,13 +296,13 @@ class Cart {
     {
         $cart = $this->getContent();
 
-        $this->events->fire($this->getInstanceName().'.removing', array($id, $this));
+        $this->events->fire($this->getInstanceName() . '.removing', array($id, $this));
 
         $cart->forget($id);
 
         $this->save($cart);
 
-        $this->events->fire($this->getInstanceName().'.removed', array($id, $this));
+        $this->events->fire($this->getInstanceName() . '.removed', array($id, $this));
     }
 
     /**
@@ -314,14 +310,14 @@ class Cart {
      */
     public function clear()
     {
-        $this->events->fire($this->getInstanceName().'.clearing', array($this));
+        $this->events->fire($this->getInstanceName() . '.clearing', array($this));
 
         $this->session->put(
             $this->sessionKeyCartItems,
             array()
         );
 
-        $this->events->fire($this->getInstanceName().'.cleared', array($this));
+        $this->events->fire($this->getInstanceName() . '.cleared', array($this));
     }
 
     /**
@@ -333,22 +329,20 @@ class Cart {
      */
     public function condition($condition)
     {
-        if( is_array($condition) )
-        {
-            foreach($condition as $c)
-            {
+        if (is_array($condition)) {
+            foreach ($condition as $c) {
                 $this->condition($c);
             }
 
             return $this;
         }
 
-        if( ! $condition instanceof CartCondition ) throw new InvalidConditionException('Argument 1 must be an instance of \'Darryldecode\Cart\CartCondition\'');
+        if (!$condition instanceof CartCondition) throw new InvalidConditionException('Argument 1 must be an instance of \'Darryldecode\Cart\CartCondition\'');
 
         $conditions = $this->getConditions();
 
         // Check if order has been applied
-        if($condition->getOrder() == 0) {
+        if ($condition->getOrder() == 0) {
             $last = $conditions->last();
             $condition->setOrder(!is_null($last) ? $last->getOrder() + 1 : 1);
         }
@@ -386,17 +380,16 @@ class Cart {
     }
 
     /**
-    * Get all the condition filtered by Type
-    * Please Note that this will only return condition added on cart bases, not those conditions added
-    * specifically on an per item bases
-    *
-    * @param $type
-    * @return CartConditionCollection
-    */
+     * Get all the condition filtered by Type
+     * Please Note that this will only return condition added on cart bases, not those conditions added
+     * specifically on an per item bases
+     *
+     * @param $type
+     * @return CartConditionCollection
+     */
     public function getConditionsByType($type)
     {
-        return $this->getConditions()->filter(function(CartCondition $condition) use ($type)
-        {
+        return $this->getConditions()->filter(function (CartCondition $condition) use ($type) {
             return $condition->getType() == $type;
         });
     }
@@ -412,8 +405,7 @@ class Cart {
      */
     public function removeConditionsByType($type)
     {
-        $this->getConditionsByType($type)->each(function($condition)
-        {
+        $this->getConditionsByType($type)->each(function ($condition) {
             $this->removeCartCondition($condition->getName());
         });
     }
@@ -446,13 +438,11 @@ class Cart {
      */
     public function removeItemCondition($itemId, $conditionName)
     {
-        if( ! $item = $this->getContent()->get($itemId) )
-        {
+        if (!$item = $this->getContent()->get($itemId)) {
             return false;
         }
 
-        if( $this->itemHasConditions($item) )
-        {
+        if ($this->itemHasConditions($item)) {
             // NOTE:
             // we do it this way, we get first conditions and store
             // it in a temp variable $originalConditions, then we will modify the array there
@@ -465,12 +455,9 @@ class Cart {
             // if the item's conditions is in array format
             // we will iterate through all of it and check if the name matches
             // to the given name the user wants to remove, if so, remove it
-            if( is_array($tempConditionsHolder) )
-            {
-                foreach($tempConditionsHolder as $k => $condition)
-                {
-                    if( $condition->getName() == $conditionName )
-                    {
+            if (is_array($tempConditionsHolder)) {
+                foreach ($tempConditionsHolder as $k => $condition) {
+                    if ($condition->getName() == $conditionName) {
                         unset($tempConditionsHolder[$k]);
                     }
                 }
@@ -482,14 +469,11 @@ class Cart {
             // an instance of a Condition, if so, we will check if the name matches
             // on the given condition name the user wants to remove, if so,
             // lets just make $item['conditions'] an empty array as there's just 1 condition on it anyway
-            else
-            {
+            else {
                 $conditionInstance = "Darryldecode\\Cart\\CartCondition";
 
-                if ($item['conditions'] instanceof $conditionInstance)
-                {
-                    if ($tempConditionsHolder->getName() == $conditionName)
-                    {
+                if ($item['conditions'] instanceof $conditionInstance) {
+                    if ($tempConditionsHolder->getName() == $conditionName) {
                         $item['conditions'] = array();
                     }
                 }
@@ -504,6 +488,82 @@ class Cart {
     }
 
     /**
+     * remove a condition that has been applied on an item that is already on the cart  //ulterior
+     *
+     * @param $itemId
+     * @param $args (daca in item $itemId exista array $args cu elementele identice ca in array $someArgs atunci se sterge din $itemId conditia respectiva)
+     * @return bool
+     */
+    public function removeCondItem($itemId, $someArgs)
+    {
+        if (!$item = $this->getContent()->get($itemId) or !is_array($someArgs) or !$someArgs) {
+            return false;
+        }
+
+        if ($this->itemHasConditions($item)) {
+            // NOTE:
+            // we do it this way, we get first conditions and store
+            // it in a temp variable $originalConditions, then we will modify the array there
+            // and after modification we will store it again on $item['conditions']
+            // This is because of ArrayAccess implementation
+            // see link for more info: http://stackoverflow.com/questions/20053269/indirect-modification-of-overloaded-element-of-splfixedarray-has-no-effect
+
+            $tempConditionsHolder = $item['conditions'];
+
+            // if the item's conditions is in array format
+            // we will iterate through all of it and check if the name matches
+            // to the given name the user wants to remove, if so, remove it
+            if (is_array($tempConditionsHolder)) {
+                foreach ($tempConditionsHolder as $k => $condition) {
+                    if (count($someArgs) == count(array_intersect_assoc($someArgs, $condition->getArgs()))) {
+                        unset($tempConditionsHolder[$k]);
+                    }
+                }
+
+                $item['conditions'] = $tempConditionsHolder;
+            }
+
+            // if the item condition is not an array, we will check if it is
+            // an instance of a Condition, if so, we will check if the name matches
+            // on the given condition name the user wants to remove, if so,
+            // lets just make $item['conditions'] an empty array as there's just 1 condition on it anyway
+            else {
+                $conditionInstance = "Darryldecode\\Cart\\CartCondition";
+
+                if ($item['conditions'] instanceof $conditionInstance) {
+                    if (count($someArgs) == count(array_intersect_assoc($someArgs, $tempConditionsHolder))) {
+                        $item['conditions'] = array();
+                    }
+                }
+            }
+        }
+
+        $this->update($itemId, array(
+            'conditions' => $item['conditions']
+        ));
+
+        return true;
+    }
+
+    /**
+     * remove a condition that has been applied on items  //ulterior
+     *
+     * @param $args (daca intr-un item $itemId exista array $args cu elementele identice ca in array $someArgs atunci se sterge din $itemId conditia respectiva)
+     * @return bool
+     */
+    public function removeCondFromItems($someArgs)
+    {
+        $items = $this->getContent();
+        if ($items->isEmpty()) return true;
+
+        foreach ($items as $item) {
+            $this->removeCondItem($item->id, $someArgs);
+        }
+
+        return true;
+    }
+
+    /**
      * remove all conditions that has been applied on an item that is already on the cart
      *
      * @param $itemId
@@ -511,8 +571,7 @@ class Cart {
      */
     public function clearItemConditions($itemId)
     {
-        if( ! $item = $this->getContent()->get($itemId) )
-        {
+        if (!$item = $this->getContent()->get($itemId)) {
             return false;
         }
 
@@ -547,8 +606,7 @@ class Cart {
     {
         $cart = $this->getContent();
 
-        $sum = $cart->sum(function($item)
-        {
+        $sum = $cart->sum(function ($item) {
             return $item->getPriceSumWithConditions(false);
         });
 
@@ -567,25 +625,43 @@ class Cart {
         $newTotal = 0.00;
 
         $process = 0;
+        $total_reducere = 0;  //ulterior
+        $label_reducere = [];
 
         $conditions = $this->getConditions();
 
+        $this->session->put($this->sessionKeyCartDiscount, []);  //ulterior
+
         // if no conditions were added, just return the sub total
-        if( ! $conditions->count() ) return $subTotal;
+        if (!$conditions->count()) {
+            $ret = $subTotal;
+        } else {
+            $conditions->each(function ($cond) use ($subTotal, &$newTotal, &$process, &$total_reducere, &$label_reducere) {
+                if ($cond->getTarget() === 'subtotal') {
+                    ($process > 0) ? $toBeCalculated = $newTotal : $toBeCalculated = $subTotal;
 
-        $conditions->each(function($cond) use ($subTotal, &$newTotal, &$process)
-        {
-            if( $cond->getTarget() === 'subtotal' )
-            {
-                ( $process > 0 ) ? $toBeCalculated = $newTotal : $toBeCalculated = $subTotal;
+                    $newTotal = $cond->applyCondition($toBeCalculated);
 
-                $newTotal = $cond->applyCondition($toBeCalculated);
+                    //ulterior if de mai jos
+                    if (is_array($x = $cond->getArgs()) and isset($x["type"]) and $x["type"] == "reducere" and ($dif = $toBeCalculated - $newTotal) > 0) {
+                        $total_reducere += $dif;
+                        $label_reducere[$x["name2"]] = $x["name2"];
+                    }
 
-                $process++;
-            }
-        });
+                    $process++;
+                }
+            });
 
-        return Helpers::formatValue($newTotal, $this->config['format_numbers'], $this->config);
+            $this->session->put($this->sessionKeyCartDiscount, ["total" => $total_reducere, "label" => $label_reducere]);
+
+            $ret = Helpers::formatValue($newTotal, $this->config['format_numbers'], $this->config);
+        }
+
+        if (method_exists($this, "afterGetTotal")) {
+            $this->afterGetTotal();
+        }
+
+        return $ret;
     }
 
     /**
@@ -597,10 +673,9 @@ class Cart {
     {
         $items = $this->getContent();
 
-        if( $items->isEmpty() ) return 0;
+        if ($items->isEmpty()) return 0;
 
-        $count = $items->sum(function($item)
-        {
+        $count = $items->sum(function ($item) {
             return $item['quantity'];
         });
 
@@ -647,8 +722,7 @@ class Cart {
 
         $validator = CartItemValidator::make($item, $rules);
 
-        if( $validator->fails() )
-        {
+        if ($validator->fails()) {
             throw new InvalidItemException($validator->messages()->first());
         }
 
@@ -663,7 +737,29 @@ class Cart {
      */
     protected function addRow($id, $item)
     {
-        $this->events->fire($this->getInstanceName().'.adding', array($item, $this));
+        //ulterior (daca exista $item["attributes"]["vat"] (adica tva) atunci [se adauga o conditie de tva si se sterge acest atribut] si [se micsoreaza pret astfel incat + conditie = pret initial]
+        if (isset($item[$x = "attributes"]) and $item[$x] and $item[$x]->vat and is_numeric($tva = $item[$x]->vat) and $tva > 0 and $tva < 100 and isset($item["price"]) and ($p = $item["price"]) > 0) {
+            $item["vat"] = $tva;
+            $item["price0"] = $p;
+            $item["price"] = round($p / (1 + $tva / 100), 2);
+
+            $cond = new \Darryldecode\Cart\CartCondition(array(
+                'name' => "VAT $tva%",
+                'type' => 'vat',
+                'target' => 'item',
+                'value' => "+$tva%",
+                //'order' => 1
+            ));
+
+            if (!isset($item[$c = "conditions"]) or !is_array($item[$c])) $item[$c] = [];
+
+            $item[$c] = array_merge([$cond], $item[$c]);
+
+            unset($item["attributes"]["vat"]);
+        }
+
+
+        $this->events->fire($this->getInstanceName() . '.adding', array($item, $this));
 
         $cart = $this->getContent();
 
@@ -671,7 +767,7 @@ class Cart {
 
         $this->save($cart);
 
-        $this->events->fire($this->getInstanceName().'.added', array($item, $this));
+        $this->events->fire($this->getInstanceName() . '.added', array($item, $this));
     }
 
     /**
@@ -702,16 +798,15 @@ class Cart {
      */
     protected function itemHasConditions($item)
     {
-        if( ! isset($item['conditions']) ) return false;
+        if (!isset($item['conditions'])) return false;
 
-        if( is_array($item['conditions']) )
-        {
+        if (is_array($item['conditions'])) {
             return count($item['conditions']) > 0;
         }
 
         $conditionInstance = "Darryldecode\\Cart\\CartCondition";
 
-        if( $item['conditions'] instanceof $conditionInstance ) return true;
+        if ($item['conditions'] instanceof $conditionInstance) return true;
 
         return false;
     }
@@ -726,24 +821,18 @@ class Cart {
      */
     protected function updateQuantityRelative($item, $key, $value)
     {
-        if( preg_match('/\-/', $value) == 1 )
-        {
-            $value = (int) str_replace('-','',$value);
+        if (preg_match('/\-/', $value) == 1) {
+            $value = (int)str_replace('-', '', $value);
 
             // we will not allowed to reduced quantity to 0, so if the given value
             // would result to item quantity of 0, we will not do it.
-            if( ($item[$key] - $value) > 0 )
-            {
+            if (($item[$key] - $value) > 0) {
                 $item[$key] -= $value;
             }
-        }
-        elseif( preg_match('/\+/', $value) == 1 )
-        {
-            $item[$key] += (int) str_replace('+','',$value);
-        }
-        else
-        {
-            $item[$key] += (int) $value;
+        } elseif (preg_match('/\+/', $value) == 1) {
+            $item[$key] += (int)str_replace('+', '', $value);
+        } else {
+            $item[$key] += (int)$value;
         }
 
         return $item;
@@ -759,7 +848,7 @@ class Cart {
      */
     protected function updateQuantityNotRelative($item, $key, $value)
     {
-        $item[$key] = (int) $value;
+        $item[$key] = (int)$value;
 
         return $item;
     }

@@ -63,6 +63,16 @@ class CartCondition {
     }
 
     /**
+     * the name of the condition
+     *
+     * @return mixed
+     */
+    public function getArgs()
+    {
+        return $this->args;
+    }
+
+    /**
      * the type of the condition
      *
      * @return mixed
