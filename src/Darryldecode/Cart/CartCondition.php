@@ -162,6 +162,9 @@ class CartCondition {
         // has a minus or plus sign so we can decide what to do with the
         // percentage, whether to add or subtract it to the total/subtotal/price
         // if we can't find any plus/minus sign, we will assume it as plus sign
+
+        $this->args["procent"] = null;
+
         if( $this->valueIsPercentage($conditionValue) )
         {
             if( $this->valueIsToBeSubtracted($conditionValue) )
@@ -171,6 +174,8 @@ class CartCondition {
                 $this->parsedRawValue = $totalOrSubTotalOrPrice * ($value / 100);
 
                 $result = floatval($totalOrSubTotalOrPrice - $this->parsedRawValue);
+
+                $this->args["procent"] = -$value;   //ulterior
             }
             else if ( $this->valueIsToBeAdded($conditionValue) )
             {
@@ -179,6 +184,8 @@ class CartCondition {
                 $this->parsedRawValue = $totalOrSubTotalOrPrice * ($value / 100);
 
                 $result = floatval($totalOrSubTotalOrPrice + $this->parsedRawValue);
+
+                $this->args["procent"] = $value;  //ulterior
             }
             else
             {
@@ -187,6 +194,8 @@ class CartCondition {
                 $this->parsedRawValue = $totalOrSubTotalOrPrice * ($value / 100);
 
                 $result = floatval($totalOrSubTotalOrPrice + $this->parsedRawValue);
+
+                $this->args["procent"] = $value;  //ulterior
             }
         }
 
@@ -215,7 +224,11 @@ class CartCondition {
         }
 
         // Do not allow items with negative prices.
-        return $result < 0 ? 0.00 : $result;
+        $val = (($result < 0) ? 0.00 : $result);
+
+        $this->args["price"] = $val - $totalOrSubTotalOrPrice;  //dd($this->args);
+
+        return $val;
     }
 
     /**

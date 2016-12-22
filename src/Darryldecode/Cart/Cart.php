@@ -4,6 +4,7 @@ use Darryldecode\Cart\Exceptions\InvalidConditionException;
 use Darryldecode\Cart\Exceptions\InvalidItemException;
 use Darryldecode\Cart\Helpers\Helpers;
 use Darryldecode\Cart\Validators\CartItemValidator;
+use Illuminate\Support\Collection;
 
 /**
  * Class Cart
@@ -246,13 +247,6 @@ class Cart
         $this->events->fire($this->getInstanceName() . '.updated', array($item, $this));
     }
 
-    public function getKeyVat($arr)
-    {
-        foreach ($arr as $k => $v) {
-            //if ($v[])
-        }
-    }
-
     /**
      * add condition on an existing item on the cart
      *
@@ -356,6 +350,26 @@ class Cart
         $this->saveConditions($conditions);
 
         return $this;
+    }
+
+    /**
+     * get session
+     *
+     * @return SessionMock
+     */
+    public function getSession()
+    {
+        return $this->session->getSession();
+    }
+
+    /**
+     * get session
+     *
+     * @return SessionMock
+     */
+    public function getSessionArray()
+    {
+        return $this->session->getSession();
     }
 
     /**
@@ -874,5 +888,29 @@ class Cart
     public function setThousandsSep($thousands_sep)
     {
         $this->thousands_sep = $thousands_sep;
+    }
+
+    public function toArray(){
+        $a = $this->getSession();
+        foreach ($a as $k=>$v){
+            if($v instanceof Collection) $a[$k] = $a[$k]->toArray();
+        }
+        if(isset($a["s1_cart_items"])){
+            foreach ($a["s1_cart_items"] as $ki=>$item){
+                if(isset($item["conditions"]) and is_array($item["conditions"])){
+                    $cond2 = [];
+                    foreach ($item["conditions"] as $kc=>$condition) {
+                        if($condition instanceof CartCondition){
+                            $args = $condition->getArgs();
+                            $cond2[] = $args;
+                            //if($args["type"]!="vat" or !isset($item["vat"]) or $item["vat"]<=0) $cond2[] = $args;
+                        }
+                    }
+                    $a["s1_cart_items"][$ki]["conditions"] = $cond2;
+                }
+            }
+        }
+
+        return $a;
     }
 }

@@ -81,12 +81,13 @@ class ItemCollection extends Collection {
         {
             if( is_array($this->conditions) )
             {
-                foreach($this->conditions as $condition)
+                foreach($this->conditions as $k=>$condition)
                 {
                     if( $condition->getTarget() === 'item' )
                     {
                         ( $processed > 0 ) ? $toBeCalculated = $newPrice : $toBeCalculated = $originalPrice;
-                        $newPrice = $condition->applyCondition($toBeCalculated);
+                        //$newPrice = $condition->applyCondition($toBeCalculated);
+                        $newPrice = $this->conditions[$k]->applyCondition($toBeCalculated);  //ulterior
                         $processed++;
                     }
                 }
