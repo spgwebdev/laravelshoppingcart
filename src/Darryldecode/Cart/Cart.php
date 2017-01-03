@@ -227,16 +227,20 @@ class Cart
             } elseif ($key == 'attributes') {
                 $item[$key] = new ItemAttributeCollection($value);
             } else {
-                //$item[$key] = $value;
-                //ulterior
-                if ($key == "conditions" and is_array($item[$key]) and $a2 = array_filter($item[$key], function ($v) {  // and count($item[$key]) and $item[$key][0]->getType()=="vat"
-                        return $v->getType() == "vat";
-                    })
-                ) {
-                    $item[$key] = array_merge($a2, $value);
-                } else {
-                    $item[$key] = $value;
+                //ulterior pus acest if
+                if ($key == "conditions" and is_array($item[$key]))
+                {
+                    for($i=null; list($k,$v)=each($value) and is_null($i);){
+                        if($v->getType() == "vat") $i=$k;
+                    }
+                    if(!is_null($i) and $i>0){
+                        $x = $value[$i];
+                        unset($value[$i]);
+                        $value = array_merge([$x],$value);
+                    }
                 }
+
+                $item[$key] = $value;
             }
         }
 
