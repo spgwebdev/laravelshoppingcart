@@ -67,10 +67,48 @@ class ItemCollection extends Collection {
     }
 
     /**
+     * functie modificata (vezi functia originala comentata mai jos)
      * get the single price in which conditions are already applied
      * @param bool $formatted
      * @return mixed|null
      */
+    public function getPriceWithConditions($formatted = true)
+    {
+        $price0 = (($this->price0>0 and $this->hasConditions() and is_array($this->conditions)
+            and isset($this->conditions[0]) and data_get($this->conditions[0]->getArgs(),"type")=="vat") ? floatval($this->price0) : 0);
+        $newPrice = $originalPrice = floatval($price0 ? $price0 : $this->price);
+
+        if( $this->hasConditions() )
+        {
+            if( is_array($this->conditions) )
+            {
+                foreach($this->conditions as $k=>$condition)
+                {
+                    if( $condition->getTarget() === 'item' )
+                    {
+                        if($k==0 and gv($x=$this->conditions[$k]->getArgs(),"type")=="vat" and $price0>0) continue;  //$newPrice = $price0;  //tva e prima conditie adaugata produsului
+                        else $newPrice -= ($originalPrice - $this->conditions[$k]->applyCondition($originalPrice));
+                    }
+                }
+            }
+            else
+            {
+                if( $this['conditions']->getTarget() === 'item' )
+                {
+                    $newPrice = $this['conditions']->applyCondition($originalPrice);
+                }
+            }
+            //if($price0==80) dd($newPrice);
+
+            $this->price2 = $newPrice;
+            return Helpers::formatValue($newPrice, $formatted, $this->config);
+        }
+
+        $this->price2 = $originalPrice;
+        return Helpers::formatValue($originalPrice, $formatted, $this->config);
+    }
+
+    /*
     public function getPriceWithConditions($formatted = true)
     {
         $originalPrice = $this->price;
@@ -86,8 +124,8 @@ class ItemCollection extends Collection {
                     if( $condition->getTarget() === 'item' )
                     {
                         ( $processed > 0 ) ? $toBeCalculated = $newPrice : $toBeCalculated = $originalPrice;
-                        //$newPrice = $condition->applyCondition($toBeCalculated);
-                        $newPrice = $this->conditions[$k]->applyCondition($toBeCalculated);  //ulterior
+                        $newPrice = $condition->applyCondition($toBeCalculated);
+
                         $processed++;
                     }
                 }
@@ -100,12 +138,11 @@ class ItemCollection extends Collection {
                 }
             }
 
-            $this->price2 = $newPrice;
             return Helpers::formatValue($newPrice, $formatted, $this->config);
         }
-        $this->price2 = $originalPrice;
         return Helpers::formatValue($originalPrice, $formatted, $this->config);
     }
+    */
 
     /**
      * get the sum of price in which conditions are already applied
