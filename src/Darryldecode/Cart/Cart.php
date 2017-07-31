@@ -522,8 +522,8 @@ class Cart
         });
 
         return Helpers::formatValue(floatval($sum), $formatted, $this->config);
-    }    
-    
+    }
+
     /**
      * get cart sub total
      * @param bool $formatted
@@ -661,7 +661,7 @@ class Cart
 
         $this->save($cart);
 
-        $this->fireEvent('added', $item);
+        $this->fireEvent('added', $cart->get($id));
 
         return true;
     }
