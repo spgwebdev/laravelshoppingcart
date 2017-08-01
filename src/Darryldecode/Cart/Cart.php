@@ -70,7 +70,7 @@ class Cart
         $this->instanceName = $instanceName;
         $this->sessionKeyCartItems = $session_key . '_cart_items';
         $this->sessionKeyCartConditions = $session_key . '_cart_conditions';
-        $this->fireEvent('created');
+        $this->fireEvent('created', $this);
         $this->config = $config;
     }
 
@@ -603,6 +603,16 @@ class Cart
     public function getContent()
     {
         return (new CartCollection($this->session->get($this->sessionKeyCartItems)));
+    }
+
+    /**
+     * get the cart with event fired
+     * @return CartCollection
+     */
+    public function listContent()
+    {
+        $this->fireEvent('list', $this);
+        return $this->getContent();
     }
 
     /**
