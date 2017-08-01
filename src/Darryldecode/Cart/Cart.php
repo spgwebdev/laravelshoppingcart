@@ -156,6 +156,8 @@ class Cart
             'name' => $name,
             'price' => Helpers::normalizePrice($price),
             'quantity' => $quantity,
+            'created_at' => time(),
+            'updated_at' => time(),
             'attributes' => new ItemAttributeCollection($attributes),
             'conditions' => $conditions,
         ));
@@ -223,6 +225,7 @@ class Cart
                 $item[$key] = $value;
             }
         }
+        $item['updated_at'] = time();
 
         $cart->put($id, $item);
 
@@ -612,7 +615,7 @@ class Cart
     public function listContent()
     {
         $this->fireEvent('list', $this);
-        return $this->getContent();
+        return $this->getContent()->sortBy('created_at');
     }
 
     /**
