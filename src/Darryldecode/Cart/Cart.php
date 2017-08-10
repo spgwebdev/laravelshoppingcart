@@ -359,6 +359,22 @@ class Cart
     }
 
     /**
+     * get conditions applied on the items
+     *
+     * @return CartConditionCollection
+     */
+    public function getItemConditions()
+    {
+        $itemsConditions = [];
+
+        (new CartCollection($this->session->get($this->sessionKeyCartItems)))->filter(function ($item) use (&$itemsConditions) {
+            $item->hasConditions() ? $itemsConditions[] = $item->getConditions() : null;
+        });
+
+        return new CartConditionCollection($itemsConditions);
+    }
+
+    /**
      * get condition applied on the cart by its name
      *
      * @param $conditionName
@@ -538,6 +554,22 @@ class Cart
 
         $sum = $cart->sum(function ($item) {
             return $item->getPriceSumWithConditions(false);
+        });
+
+        return Helpers::formatValue(floatval($sum), $formatted, $this->config);
+    }
+
+    /**
+     * get items sub total
+     * @param bool $formatted
+     * @return float
+     */
+    public function getItemsSubTotal($formatted = true)
+    {
+        $cart = $this->getContent();
+
+        $sum = $cart->sum(function ($item) {
+            return $item->getPriceSum();
         });
 
         return Helpers::formatValue(floatval($sum), $formatted, $this->config);
