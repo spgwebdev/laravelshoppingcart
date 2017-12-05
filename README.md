@@ -7,7 +7,7 @@ A Shopping Cart Implementation for Laravel Framework
 
 ## QUICK PARTIAL DEMO
 
-Demo: http://phpstack-86254-257005.cloudwaysapps.com/cart
+Demo: https://shoppingcart-demo.darrylfernandez.com/cart
 
 Git repo of the demo: https://github.com/darryldecode/laravelshoppingcart-demo
 
@@ -18,12 +18,13 @@ Install the package through [Composer](http://getcomposer.org/).
 For Laravel 5.1~:
 ```composer require "darryldecode/cart:~2.0"```
     
-For Laravel 5.4~:
+For Laravel 5.5~:
 ```composer require "darryldecode/cart:~3.0"```
 
 ## CONFIGURATION
 
-1. Open config/app.php and add this line to your Service Providers Array
+1. Open config/app.php and add this line to your Service Providers Array. 
+NOTE: If you are using laravel 5.5, this will be automatically added by its auto discovery.
   ```php
   Darryldecode\Cart\CartServiceProvider::class
   ```
@@ -43,6 +44,7 @@ For Laravel 5.4~:
 * [Events](#events)
 * [Format Response](#format)
 * [Examples](#examples)
+* [Using Different Storage](#storage)
 * [Changelogs](#changelogs)
 * [License](#license)
 
@@ -598,7 +600,49 @@ $this->app['wishlist'] = $this->app->share(function($app)
 				$session_key
 			);
 		});
+		
+// for 5.4 or newer
+use Darryldecode\Cart\Cart;
+use Illuminate\Support\ServiceProvider;
+
+class WishListProvider extends ServiceProvider
+{
+    /**
+     * Bootstrap the application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        //
+    }
+    /**
+     * Register the application services.
+     *
+     * @return void
+     */
+    public function register()
+    {
+        $this->app->singleton('wishlist', function($app)
+        {
+            $storage = $app['session'];
+            $events = $app['events'];
+            $instanceName = 'cart_2';
+            $session_key = '88uuiioo99888';
+            return new Cart(
+                $storage,
+                $events,
+                $instanceName,
+                $session_key,
+                config('shopping_cart')
+            );
+        });
+    }
+}
 ```
+
+IF you are having problem with multiple cart instance, please see the codes on
+this demo repo here: [DEMO](https://github.com/darryldecode/laravelshoppingcart-demo)
 
 ## Exceptions
 
@@ -720,6 +764,81 @@ $items->each(function($item)
 });
 
 ```
+
+## Storage
+
+Using different storage for the carts items is pretty straight forward. The storage 
+class that is injected to the Cart's instance will only need methods.
+
+Example we will need a wishlist, and we want to store its key value pair in database instead
+of the default session. We do this using below:
+
+Create a new class for your storage:
+
+Eg.
+```
+class WishListDBStorage {
+
+    public function has($key)
+    {
+        // your logic here to check if storage has the given key
+    }
+    
+    public function get($key)
+    {
+        // your logic here to get an item using its key
+    }
+    
+    public function put($key, $value)
+    {
+        // your logic here to put an item with key value pair
+    }
+}
+```
+
+Then in your service provider for your wishlist cart, you replace the storage
+to use your custom storage.
+
+```
+use Darryldecode\Cart\Cart;
+use Illuminate\Support\ServiceProvider;
+
+class WishListProvider extends ServiceProvider
+{
+    /**
+     * Bootstrap the application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        //
+    }
+    /**
+     * Register the application services.
+     *
+     * @return void
+     */
+    public function register()
+    {
+        $this->app->singleton('wishlist', function($app)
+        {
+            $storage = new WishListDBStorage(); <-- Your new custom storage
+            $events = $app['events'];
+            $instanceName = 'cart_2';
+            $session_key = '88uuiioo99888';
+            return new Cart(
+                $storage,
+                $events,
+                $instanceName,
+                $session_key,
+                config('shopping_cart')
+            );
+        });
+    }
+}
+```
+
 
 ## Changelogs
 
