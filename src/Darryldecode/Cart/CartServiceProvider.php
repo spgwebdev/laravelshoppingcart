@@ -32,7 +32,9 @@ class CartServiceProvider extends ServiceProvider {
 	{
 		$this->mergeConfigFrom(__DIR__.'/config/config.php', 'shopping_cart');
 
-		$this->app['cart'] = $this->app->share(function($app)
+		//As of laravel 5.4 share has been removed. You will have to use the singleton instead. (update at 9mar2018)
+		//$this->app['cart'] = $this->app->share(function($app)
+        $this->app->singleton('cart', function ($app)
 		{
 			$storage = $app['session'];
 			$events = $app['events'];
