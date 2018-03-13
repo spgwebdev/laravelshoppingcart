@@ -230,7 +230,12 @@ class Cart
                 //ulterior pus acest if
                 if ($key == "conditions" and is_array($item[$key]))
                 {
-                    for($i=null; list($k,$v)=each($value) and is_null($i);){
+                    //for($i=null; list($k,$v)=each($value) and is_null($i);){
+                    $i=null;
+                    foreach($value as $k=>$v){
+                        if(!is_null($i)){
+                            break;
+                        }
                         if($v->getType() == "vat") $i=$k;
                     }
                     if(!is_null($i) and $i>0){
